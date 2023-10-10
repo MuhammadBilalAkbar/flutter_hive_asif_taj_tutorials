@@ -14,7 +14,7 @@ void main() async {
 
   // var directory = await getApplicationDocumentsDirectory();
   // Hive.init(directory.path);
-
+  // Use Hive.init() for non-Flutter apps.
   await Hive.initFlutter();
 
   Hive.registerAdapter(NotesModelAdapter());

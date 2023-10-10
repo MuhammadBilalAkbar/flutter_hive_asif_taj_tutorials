@@ -17,6 +17,13 @@ class _HomeScreenTwoState extends State<HomeScreenTwo> {
   final descriptionController = TextEditingController();
 
   @override
+  void dispose() {
+    Hive.close();
+    // Hive.box('name').close();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -25,9 +32,8 @@ class _HomeScreenTwoState extends State<HomeScreenTwo> {
       body: ValueListenableBuilder<Box<NotesModel>>(
         valueListenable: Boxes.getData().listenable(),
         builder: (context, box, _) {
-          var data = box.values.toList().cast<NotesModel>();
+          final data = box.values.toList().cast<NotesModel>();
           return ListView.builder(
-            reverse: true,
             itemCount: box.length,
             itemBuilder: (context, index) => Card(
               child: Padding(
@@ -37,7 +43,32 @@ class _HomeScreenTwoState extends State<HomeScreenTwo> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    Text(data[index].title),
+                    Row(
+                      children: [
+                        Text(data[index].title),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () {
+                            editNoteDialog(
+                              data[index],
+                              data[index].title,
+                              data[index].description,
+                            );
+                          },
+                          child: const Icon(Icons.edit),
+                        ),
+                        const SizedBox(width: 15),
+                        GestureDetector(
+                          onTap: () {
+                            data[index].delete();
+                          },
+                          child: const Icon(
+                            Icons.delete,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
                     Text(data[index].description),
                   ],
                 ),
@@ -48,14 +79,72 @@ class _HomeScreenTwoState extends State<HomeScreenTwo> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          showMyDialog();
+          createNoteDialog();
         },
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  Future<void> showMyDialog() async {
+  Future<void> editNoteDialog(
+    NotesModel notesModel,
+    String title,
+    String description,
+  ) async {
+    titleController.text = title;
+    descriptionController.text = description;
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Update Notes'),
+        content: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextFormField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  hintText: 'Enter title',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  hintText: 'Enter description',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              notesModel.title = titleController.text;
+              notesModel.description = descriptionController.text;
+
+              await notesModel.save();
+              titleController.clear();
+              descriptionController.clear();
+
+              if (!context.mounted) return;
+              Navigator.pop(context);
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> createNoteDialog() async {
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -97,12 +186,14 @@ class _HomeScreenTwoState extends State<HomeScreenTwo> {
 
               final box = Boxes.getData();
               box.add(data);
+              // box.put('myKey',data);
 
               data.save();
               debugPrint(box.length.toString());
 
               titleController.clear();
               descriptionController.clear();
+              Navigator.pop(context);
             },
             child: const Text('Add'),
           ),
